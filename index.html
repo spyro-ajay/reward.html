@@ -75,7 +75,7 @@
               const timePassed = now - createdAt;
 
               if (timePassed < 90000) {
-                statusMsg.innerHTML = "<span style='color:orange;'>⚠ Please wait at least 1.5 minutes before claiming reward.</span>";
+                statusMsg.innerHTML = "<span style='color:orange;'>⚠ You must come through a valid link or proper page flow to claim this reward.</span>";
               } else if (timePassed > 420000) {
                 statusMsg.innerHTML = "<span style='color:red;'>❌ This code has expired (after 7 minutes).</span>";
               } else {
