@@ -24,10 +24,12 @@
   <h1>🎉 Verifying Your Task...</h1>
   <p>Please wait a moment while we confirm your reward.</p>
 
+  <!-- ✅ Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
+    // ✅ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBOASGBeUx9WtencQSpHxIuVYROCIg5yGg",
       authDomain: "eran-money-34265.firebaseapp.com",
@@ -41,6 +43,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // ✅ URL Parameters
     const query = new URLSearchParams(window.location.search);
     const uid = query.get("uid");
     const task = query.get("task");
@@ -63,13 +66,18 @@
           const lastTime = taskSnap.val();
           if (!lastTime || now - lastTime >= cooldown) {
             taskRef.set(now);
+
             const userRef = db.ref(`users/${uid}`);
             userRef.once("value").then(userSnap => {
               const data = userSnap.val();
               const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2);
               const newClicks = (data.clicks || 0) + 1;
+
               userRef.update({ balance: newBal, clicks: newClicks }).then(() => {
-                document.body.innerHTML = `<h1>✅ ₹0.50 Reward Added!</h1><p>Check your balance in the app.</p>`;
+                document.body.innerHTML = `
+                  <h1>✅ ₹0.50 Reward Added!</h1>
+                  <p>Check your balance in the app.</p>
+                `;
               });
             });
           } else {
