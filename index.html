@@ -18,18 +18,25 @@
     }
     h1 { color: #1dbf73; }
     p { font-size: 18px; color: #444; }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1>🎉 Verifying Your Task...</h1>
-  <p>Please wait a moment while we confirm your reward.</p>
+  <h1>🎉 Verifying Your Code...</h1>
+  <p>Enter the code you received to claim your reward.</p>
+  <input type="text" id="codeInput" placeholder="Enter your code here" />
+  <button onclick="verifyCode()">Submit</button>
+  <div id="statusMsg" style="margin-top: 20px;"></div>
 
   <!-- ✅ Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // ✅ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBOASGBeUx9WtencQSpHxIuVYROCIg5yGg",
       authDomain: "eran-money-34265.firebaseapp.com",
@@ -43,56 +50,70 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const query = new URLSearchParams(window.location.search);
-    const uid = query.get("uid");
-    const task = query.get("task");
+    function verifyCode() {
+      const code = document.getElementById("codeInput").value.trim();
+      const statusMsg = document.getElementById("statusMsg");
 
-    if (!uid || !task) {
-      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task ID missing from URL.</h2>";
-    } else {
-      const clickRef = db.ref(`clickTrackings/${uid}/${task}`);
+      if (!code) {
+        statusMsg.innerHTML = "<span style='color:red;'>❌ Please enter a code.</span>";
+        return;
+      }
 
-      clickRef.once("value").then(snapshot => {
-        const data = snapshot.val();
+      db.ref("clickTrackings").once("value").then(snapshot => {
+        let found = false;
 
-        if (!data || data.status !== false) {
-          document.body.innerHTML = "<h2 style='color:red;'>❌ Invalid or already completed task!</h2>";
-          return;
-        }
+        snapshot.forEach(userSnap => {
+          const uid = userSnap.key;
+          userSnap.forEach(taskSnap => {
+            const task = taskSnap.key;
+            const data = taskSnap.val();
 
-        const now = Date.now();
-        const cooldown = 24 * 60 * 60 * 1000; // 24 hrs
-        const taskTimeRef = db.ref(`users/${uid}/tasks/${task}`);
+            if (data.token === code && data.status === false) {
+              found = true;
+              const now = Date.now();
+              const createdAt = data.createdAt || 0;
+              const timePassed = now - createdAt;
 
-        taskTimeRef.once("value").then(taskSnap => {
-          const lastTime = taskSnap.val();
+              if (timePassed < 90000) {
+                statusMsg.innerHTML = "<span style='color:orange;'>⚠ Please wait at least 1.5 minutes before claiming reward.</span>";
+              } else if (timePassed > 420000) {
+                statusMsg.innerHTML = "<span style='color:red;'>❌ This code has expired (after 7 minutes).</span>";
+              } else {
+                const userRef = db.ref(`users/${uid}`);
+                const taskRef = db.ref(`users/${uid}/tasks/${task}`);
 
-          if (!lastTime || now - lastTime >= cooldown) {
-            taskTimeRef.set(now);
+                taskRef.once("value").then(tSnap => {
+                  const lastTime = tSnap.val();
 
-            const userRef = db.ref(`users/${uid}`);
-            userRef.once("value").then(userSnap => {
-              const userData = userSnap.val();
-              const newBal = (parseFloat(userData.balance || 0) + 0.5).toFixed(2);
-              const newClicks = (userData.clicks || 0) + 1;
+                  if (!lastTime || now - lastTime >= 24 * 60 * 60 * 1000) {
+                    taskRef.set(now);
 
-              userRef.update({
-                balance: newBal,
-                clicks: newClicks
-              });
+                    userRef.once("value").then(userSnap => {
+                      const user = userSnap.val();
+                      const newBal = (parseFloat(user.balance || 0) + 0.5).toFixed(2);
+                      const newClicks = (user.clicks || 0) + 1;
 
-              // ✅ Mark as completed
-              clickRef.update({ status: true });
+                      userRef.update({
+                        balance: newBal,
+                        clicks: newClicks
+                      });
 
-              document.body.innerHTML = `
-                <h1>✅ ₹0.50 Reward Added!</h1>
-                <p>Check your balance in the app.</p>
-              `;
-            });
-          } else {
-            document.body.innerHTML = "<h2 style='color:orange;'>⚠ You already completed this task today.</h2>";
-          }
+                      db.ref(`clickTrackings/${uid}/${task}`).update({ status: true });
+
+                      statusMsg.innerHTML = "<h2 style='color:green;'>✅ ₹0.50 Reward Added!</h2><p>Check your balance in the app.</p>";
+                    });
+                  } else {
+                    statusMsg.innerHTML = "<span style='color:orange;'>⚠ You already completed this task today. Try again after 24 hours.</span>";
+                  }
+                });
+              }
+            }
+          });
         });
+
+        if (!found) {
+          statusMsg.innerHTML = "<span style='color:red;'>❌ Invalid or already used code.</span>";
+        }
       });
     }
   </script>
