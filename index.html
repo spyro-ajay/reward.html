@@ -2,29 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Starting Task...</title>
+  <title>Reward Confirmation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f0f0f0;
+      background: #f4f6fb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
       text-align: center;
-      padding: 50px;
+      padding: 20px;
     }
     h1 {
-      color: #3b82f6;
+      color: #1dbf73;
     }
-    #loader {
-      margin-top: 30px;
+    p {
+      font-size: 18px;
+      color: #444;
     }
   </style>
 </head>
 <body>
-  <h1>🚀 Starting Task...</h1>
-  <p>Please wait, verifying your token and redirecting...</p>
-  <div id="loader">
-    <img src="https://i.gifer.com/ZZ5H.gif" width="60" alt="Loading..." />
-  </div>
+  <h1>🎉 Verifying Your Task...</h1>
+  <p>Please wait a moment while we confirm your reward.</p>
 
   <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -47,22 +50,38 @@
     const query = new URLSearchParams(window.location.search);
     const uid = query.get("uid");
     const task = query.get("task");
-    const token = query.get("token");
 
-    if (!uid || !task || !token) {
-      document.body.innerHTML = "<h2 style='color:red;'>❌ UID, task, or token missing.</h2>";
+    if (!uid || !task) {
+      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task ID missing from URL.</h2>";
     } else {
-      db.ref(`verifyTokens/${uid}/${task}`).once("value").then(snapshot => {
-        const data = snapshot.val();
-        if (data && data.token === token) {
-          db.ref(`tokens/${uid}/${task}/verified`).set(true).then(() => {
-            setTimeout(() => {
-              window.location.href = `https://spyro-ajay.github.io/reward.html?uid=${uid}&task=${task}`;
-            }, 3000);
-          });
-        } else {
-          document.body.innerHTML = "<h2 style='color:red;'>❌ Invalid or expired token.</h2>";
+      const verifyRef = db.ref(`tokens/${uid}/${task}/verified`);
+      verifyRef.once("value").then(snapshot => {
+        if (!snapshot.val()) {
+          document.body.innerHTML = "<h2 style='color:red;'>❌ Invalid task attempt!</h2>";
+          return;
         }
+
+        const now = Date.now();
+        const cooldown = 24 * 60 * 60 * 1000;
+        const taskRef = db.ref(`users/${uid}/tasks/${task}`);
+
+        taskRef.once("value").then(taskSnap => {
+          const lastTime = taskSnap.val();
+          if (!lastTime || now - lastTime >= cooldown) {
+            taskRef.set(now);
+            const userRef = db.ref(`users/${uid}`);
+            userRef.once("value").then(userSnap => {
+              const data = userSnap.val();
+              const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2);
+              const newClicks = (data.clicks || 0) + 1;
+              userRef.update({ balance: newBal, clicks: newClicks }).then(() => {
+                document.body.innerHTML = `<h1>✅ ₹0.50 Reward added!</h1><p>Check your balance in the app.</p>`;
+              });
+            });
+          } else {
+            document.body.innerHTML = "<h2 style='color:orange;'>⚠ You already completed this task today.</h2>";
+          }
+        });
       });
     }
   </script>
