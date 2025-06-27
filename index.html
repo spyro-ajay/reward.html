@@ -41,6 +41,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
+    // ✅ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBOASGBeUx9WtencQSpHxIuVYROCIg5yGg",
       authDomain: "eran-money-34265.firebaseapp.com",
@@ -53,46 +54,57 @@
 
     firebase.initializeApp(firebaseConfig);
 
-    const uid = new URLSearchParams(window.location.search).get("uid");
-    const task = new URLSearchParams(window.location.search).get("task");
+    // ✅ Extract Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const uid = urlParams.get("uid");
+    const task = urlParams.get("task");
 
-    if (uid && task) {
+    if (!uid || !task) {
+      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task missing in URL.</h2>";
+    } else {
+      // ✅ Wait 3 seconds before verifying
       setTimeout(() => {
         const tokenPath = `tokens/${uid}/${task}/verified`;
 
         firebase.database().ref(tokenPath).once("value").then(snapshot => {
           if (!snapshot.val()) {
             alert("❌ Invalid Task Attempt");
-            return;
+            return window.location.href = "https://spyro-ajay.github.io/Linkpage.html";
           }
 
-          const taskRef = firebase.database().ref("users/" + uid + "/tasks/" + task);
-          taskRef.once("value").then(snap => {
-            const lastTime = snap.val();
-            const now = Date.now();
-            const cooldown = 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          const cooldown = 24 * 60 * 60 * 1000;
+          const taskRef = firebase.database().ref(`users/${uid}/tasks/${task}`);
+
+          taskRef.once("value").then(taskSnap => {
+            const lastTime = taskSnap.val();
 
             if (!lastTime || now - lastTime >= cooldown) {
               taskRef.set(now);
-              const userRef = firebase.database().ref("users/" + uid);
-              userRef.once("value").then(dataSnap => {
-                const data = dataSnap.val();
-                const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2);
-                const newClicks = (data.clicks || 0) + 1;
+              const userRef = firebase.database().ref(`users/${uid}`);
+
+              userRef.once("value").then(userSnap => {
+                const userData = userSnap.val();
+                if (!userData) return alert("❌ User not found");
+
+                const newBalance = (parseFloat(userData.balance || 0) + 0.5).toFixed(2);
+                const newClicks = (userData.clicks || 0) + 1;
 
                 userRef.update({
-                  balance: newBal,
+                  balance: newBalance,
                   clicks: newClicks
                 }).then(() => {
-                  alert("✅ ₹0.50 Reward added successfully!");
+                  alert("✅ ₹0.50 Reward Added!");
+                  window.location.href = "https://spyro-ajay.github.io/Linkpage.html"; // 🔁 back to main page
                 });
               });
             } else {
               alert("⚠ You already completed this task today.");
+              window.location.href = "https://spyro-ajay.github.io/Linkpage.html";
             }
           });
         });
-      }, 3000); // 3 sec wait before processing
+      }, 3000);
     }
   </script>
 </body>
