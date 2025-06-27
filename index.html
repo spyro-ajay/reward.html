@@ -1,42 +1,29 @@
+<!-- index.html (task) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Reward Confirmation</title>
+  <title>Starting Task...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f4f6fb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      flex-direction: column;
+      background: #f0f0f0;
       text-align: center;
-      padding: 20px;
+      padding: 50px;
     }
-    h1 {
-      color: #1dbf73;
-      font-size: 26px;
-    }
-    p {
-      font-size: 18px;
-      color: #444;
-    }
-    #loader {
-      margin-top: 20px;
-    }
+    h1 { color: #3b82f6; }
+    #loader { margin-top: 30px; }
   </style>
 </head>
 <body>
-  <h1>🎉 Verifying Your Task...</h1>
-  <p>Please wait a moment while we confirm your reward.</p>
+  <h1>🚀 Starting Task...</h1>
+  <p>Please wait, verifying your token and redirecting...</p>
   <div id="loader">
-    <img src="https://i.gifer.com/ZZ5H.gif" width="50" alt="Loading..." />
+    <img src="https://i.gifer.com/ZZ5H.gif" width="60" alt="Loading..." />
   </div>
 
-  <!-- Firebase Scripts -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -50,55 +37,34 @@
       messagingSenderId: "823464354489",
       appId: "1:823464354489:web:72ae96a89d0356b721f168"
     };
+
     firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    const uid = new URLSearchParams(window.location.search).get("uid");
-    const task = new URLSearchParams(window.location.search).get("task");
+    const params = new URLSearchParams(window.location.search);
+    const uid = params.get("uid");
+    const task = params.get("task");
+    const token = params.get("token");
 
-    if (uid && task) {
-      setTimeout(() => {
-        const verifiedRef = firebase.database().ref(`tokens/${uid}/${task}/verified`);
-
-        verifiedRef.once("value").then(snapshot => {
-          if (!snapshot.val()) {
-            alert("❌ Invalid or Fake Attempt!");
-            window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change this to your actual app
-            return;
-          }
-
-          const taskRef = firebase.database().ref(`users/${uid}/tasks/${task}`);
-          const userRef = firebase.database().ref(`users/${uid}`);
-          const now = Date.now();
-          const cooldown = 24 * 60 * 60 * 1000;
-
-          taskRef.once("value").then(taskSnap => {
-            const lastTime = taskSnap.val();
-
-            if (!lastTime || now - lastTime >= cooldown) {
-              // ✅ Add reward
-              taskRef.set(now);
-              userRef.once("value").then(userSnap => {
-                const user = userSnap.val();
-                const newBalance = (parseFloat(user.balance || 0) + 0.5).toFixed(2);
-                const newClicks = (user.clicks || 0) + 1;
-
-                userRef.update({
-                  balance: newBalance,
-                  clicks: newClicks
-                }).then(() => {
-                  alert("✅ ₹0.50 Reward added!");
-                  window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change to app
-                });
-              });
-            } else {
-              alert("⚠ Task already completed today.");
-              window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change to app
-            }
-          });
-        });
-      }, 3000); // Wait for 3 seconds
+    if (!uid || !task || !token) {
+      document.body.innerHTML = "<h2 style='color:red;'>❌ UID, Task, or Token missing in URL</h2>";
     } else {
-      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task ID missing from URL</h2>";
+      const verifyPath = `verifyTokens/${uid}/${task}`;
+
+      db.ref(verifyPath).once("value").then(snapshot => {
+        const data = snapshot.val();
+        if (data && data.token === token) {
+          db.ref(`tokens/${uid}/${task}/verified`).set(true).then(() => {
+            setTimeout(() => {
+              window.location.href = `https://spyro-ajay.github.io/reward.html?uid=${uid}&task=${task}`;
+            }, 3000);
+          });
+        } else {
+          document.body.innerHTML = "<h2 style='color:red;'>❌ Token not valid or expired.</h2>";
+        }
+      }).catch(err => {
+        document.body.innerHTML = "<h2 style='color:red;'>🔥 Firebase error: " + err.message + "</h2>";
+      });
     }
   </script>
 </body>
