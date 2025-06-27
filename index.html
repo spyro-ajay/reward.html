@@ -43,7 +43,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ✅ URL Parameters
     const query = new URLSearchParams(window.location.search);
     const uid = query.get("uid");
     const task = query.get("task");
@@ -51,34 +50,44 @@
     if (!uid || !task) {
       document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task ID missing from URL.</h2>";
     } else {
-      const verifyRef = db.ref(`tokens/${uid}/${task}/verified`);
-      verifyRef.once("value").then(snapshot => {
-        if (!snapshot.val()) {
-          document.body.innerHTML = "<h2 style='color:red;'>❌ Invalid task attempt!</h2>";
+      const clickRef = db.ref(`clickTrackings/${uid}/${task}`);
+
+      clickRef.once("value").then(snapshot => {
+        const data = snapshot.val();
+
+        if (!data || data.status !== false) {
+          document.body.innerHTML = "<h2 style='color:red;'>❌ Invalid or already completed task!</h2>";
           return;
         }
 
         const now = Date.now();
-        const cooldown = 24 * 60 * 60 * 1000;
-        const taskRef = db.ref(`users/${uid}/tasks/${task}`);
+        const cooldown = 24 * 60 * 60 * 1000; // 24 hrs
+        const taskTimeRef = db.ref(`users/${uid}/tasks/${task}`);
 
-        taskRef.once("value").then(taskSnap => {
+        taskTimeRef.once("value").then(taskSnap => {
           const lastTime = taskSnap.val();
+
           if (!lastTime || now - lastTime >= cooldown) {
-            taskRef.set(now);
+            taskTimeRef.set(now);
 
             const userRef = db.ref(`users/${uid}`);
             userRef.once("value").then(userSnap => {
-              const data = userSnap.val();
-              const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2);
-              const newClicks = (data.clicks || 0) + 1;
+              const userData = userSnap.val();
+              const newBal = (parseFloat(userData.balance || 0) + 0.5).toFixed(2);
+              const newClicks = (userData.clicks || 0) + 1;
 
-              userRef.update({ balance: newBal, clicks: newClicks }).then(() => {
-                document.body.innerHTML = `
-                  <h1>✅ ₹0.50 Reward Added!</h1>
-                  <p>Check your balance in the app.</p>
-                `;
+              userRef.update({
+                balance: newBal,
+                clicks: newClicks
               });
+
+              // ✅ Mark as completed
+              clickRef.update({ status: true });
+
+              document.body.innerHTML = `
+                <h1>✅ ₹0.50 Reward Added!</h1>
+                <p>Check your balance in the app.</p>
+              `;
             });
           } else {
             document.body.innerHTML = "<h2 style='color:orange;'>⚠ You already completed this task today.</h2>";
