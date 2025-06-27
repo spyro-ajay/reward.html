@@ -16,49 +16,14 @@
       text-align: center;
       padding: 20px;
     }
-
-    h1 {
-      color: #1dbf73;
-      font-size: 26px;
-    }
-
-    p {
-      font-size: 18px;
-      color: #444;
-    }
-
-    #loader {
-      margin-top: 20px;
-    }
-
-    .ad-box {
-      width: 300px;
-      height: 250px;
-      background: #ddd;
-      border: 2px dashed #999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #666;
-      font-size: 14px;
-      margin-top: 30px;
-    }
+    h1 { color: #1dbf73; }
+    p { font-size: 18px; color: #444; }
   </style>
 </head>
 <body>
   <h1>🎉 Verifying Your Task...</h1>
   <p>Please wait a moment while we confirm your reward.</p>
-  <div id="loader">
-    <img src="https://i.gifer.com/ZZ5H.gif" width="50" alt="Loading..." />
-  </div>
 
-  <!-- 🔸 Ads Placeholder -->
-  <div class="ad-box">
-    Your Ad Here
-    <!-- You can replace this with Google AdSense script later -->
-  </div>
-
-  <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -73,9 +38,7 @@
       appId: "1:823464354489:web:72ae96a89d0356b721f168"
     };
 
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     const query = new URLSearchParams(window.location.search);
@@ -103,14 +66,10 @@
             const userRef = db.ref(`users/${uid}`);
             userRef.once("value").then(userSnap => {
               const data = userSnap.val();
-              const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2); // ₹0.50 reward
+              const newBal = (parseFloat(data.balance || 0) + 0.5).toFixed(2);
               const newClicks = (data.clicks || 0) + 1;
               userRef.update({ balance: newBal, clicks: newClicks }).then(() => {
-                document.body.innerHTML = `
-                  <h1>✅ ₹0.50 Reward Added!</h1>
-                  <p>Check your balance in the app.</p>
-                  <div class="ad-box">Your Ad Here</div>
-                `;
+                document.body.innerHTML = `<h1>✅ ₹0.50 Reward Added!</h1><p>Check your balance in the app.</p>`;
               });
             });
           } else {
