@@ -41,7 +41,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script>
-    // ✅ Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBOASGBeUx9WtencQSpHxIuVYROCIg5yGg",
       authDomain: "eran-money-34265.firebaseapp.com",
@@ -51,60 +50,55 @@
       messagingSenderId: "823464354489",
       appId: "1:823464354489:web:72ae96a89d0356b721f168"
     };
-
     firebase.initializeApp(firebaseConfig);
 
-    // ✅ Extract Parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const uid = urlParams.get("uid");
-    const task = urlParams.get("task");
+    const uid = new URLSearchParams(window.location.search).get("uid");
+    const task = new URLSearchParams(window.location.search).get("task");
 
-    if (!uid || !task) {
-      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task missing in URL.</h2>";
-    } else {
-      // ✅ Wait 3 seconds before verifying
+    if (uid && task) {
       setTimeout(() => {
-        const tokenPath = `tokens/${uid}/${task}/verified`;
+        const verifiedRef = firebase.database().ref(`tokens/${uid}/${task}/verified`);
 
-        firebase.database().ref(tokenPath).once("value").then(snapshot => {
+        verifiedRef.once("value").then(snapshot => {
           if (!snapshot.val()) {
-            alert("❌ Invalid Task Attempt");
-            return window.location.href = "https://spyro-ajay.github.io/Linkpage.html";
+            alert("❌ Invalid or Fake Attempt!");
+            window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change this to your actual app
+            return;
           }
 
+          const taskRef = firebase.database().ref(`users/${uid}/tasks/${task}`);
+          const userRef = firebase.database().ref(`users/${uid}`);
           const now = Date.now();
           const cooldown = 24 * 60 * 60 * 1000;
-          const taskRef = firebase.database().ref(`users/${uid}/tasks/${task}`);
 
           taskRef.once("value").then(taskSnap => {
             const lastTime = taskSnap.val();
 
             if (!lastTime || now - lastTime >= cooldown) {
+              // ✅ Add reward
               taskRef.set(now);
-              const userRef = firebase.database().ref(`users/${uid}`);
-
               userRef.once("value").then(userSnap => {
-                const userData = userSnap.val();
-                if (!userData) return alert("❌ User not found");
-
-                const newBalance = (parseFloat(userData.balance || 0) + 0.5).toFixed(2);
-                const newClicks = (userData.clicks || 0) + 1;
+                const user = userSnap.val();
+                const newBalance = (parseFloat(user.balance || 0) + 0.5).toFixed(2);
+                const newClicks = (user.clicks || 0) + 1;
 
                 userRef.update({
                   balance: newBalance,
                   clicks: newClicks
                 }).then(() => {
-                  alert("✅ ₹0.50 Reward Added!");
-                  window.location.href = "https://spyro-ajay.github.io/Linkpage.html"; // 🔁 back to main page
+                  alert("✅ ₹0.50 Reward added!");
+                  window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change to app
                 });
               });
             } else {
-              alert("⚠ You already completed this task today.");
-              window.location.href = "https://spyro-ajay.github.io/Linkpage.html";
+              alert("⚠ Task already completed today.");
+              window.location.href = "https://yourappdomain.com/Linkpage.html"; // ✅ change to app
             }
           });
         });
-      }, 3000);
+      }, 3000); // Wait for 3 seconds
+    } else {
+      document.body.innerHTML = "<h2 style='color:red;'>❌ UID or Task ID missing from URL</h2>";
     }
   </script>
 </body>
