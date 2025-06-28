@@ -23,6 +23,10 @@
       font-size: 16px;
       margin-top: 10px;
     }
+    #statusMsg {
+      margin-top: 20px;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -30,7 +34,7 @@
   <p>Enter the code you received to claim your reward.</p>
   <input type="text" id="codeInput" placeholder="Enter your code here" />
   <button onclick="verifyCode()">Submit</button>
-  <div id="statusMsg" style="margin-top: 20px;"></div>
+  <div id="statusMsg"></div>
 
   <!-- ✅ Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -53,6 +57,7 @@
     function verifyCode() {
       const code = document.getElementById("codeInput").value.trim();
       const statusMsg = document.getElementById("statusMsg");
+      statusMsg.innerHTML = "";
 
       if (!code) {
         statusMsg.innerHTML = "<span style='color:red;'>❌ Please enter a code.</span>";
@@ -68,53 +73,57 @@
             const task = taskSnap.key;
             const data = taskSnap.val();
 
-            // ✅ Check if code matches and handle 24h reset
             if (data.token === code) {
               const now = Date.now();
 
-              // 🔁 Reset status if expired (24 hrs passed)
+              // 🕒 Reset if expired
               if (data.status === true && (now - data.createdAt) > (24 * 60 * 60 * 1000)) {
                 db.ref(`clickTrackings/${uid}/${task}`).update({ status: false });
                 data.status = false;
               }
 
-              // ✅ If valid and unused
               if (data.status === false) {
                 found = true;
                 const createdAt = data.createdAt || 0;
                 const timePassed = now - createdAt;
 
                 if (timePassed < 90000) {
-                  statusMsg.innerHTML = "<span style='color:orange;'>⚠ You must come through a valid link or proper page flow to claim this reward.</span>";
+                  statusMsg.innerHTML = "<span style='color:orange;'>⚠ Come through valid link to claim reward.</span>";
                 } else if (timePassed > 420000) {
-                  statusMsg.innerHTML = "<span style='color:red;'>❌ This code has expired (after 7 minutes).</span>";
+                  statusMsg.innerHTML = "<span style='color:red;'>❌ Code expired (7 min limit).</span>";
                 } else {
-                  const userRef = db.ref(`users/${uid}`);
-                  const taskRef = db.ref(`users/${uid}/tasks/${task}`);
+                  // ✅ Get task reward from adminTasks
+                  db.ref(`adminTasks/${task}/reward`).once("value").then(rSnap => {
+                    const rewardAmount = parseFloat(rSnap.val() || 0.5);
 
-                  taskRef.once("value").then(tSnap => {
-                    const lastTime = tSnap.val();
+                    const userRef = db.ref(`users/${uid}`);
+                    const taskRef = db.ref(`users/${uid}/tasks/${task}`);
 
-                    if (!lastTime || now - lastTime >= 24 * 60 * 60 * 1000) {
-                      taskRef.set(now);
+                    taskRef.once("value").then(tSnap => {
+                      const lastTime = tSnap.val();
 
-                      userRef.once("value").then(userSnap => {
-                        const user = userSnap.val();
-                        const newBal = (parseFloat(user.balance || 0) + 0.5).toFixed(2);
-                        const newClicks = (user.clicks || 0) + 1;
+                      if (!lastTime || now - lastTime >= 24 * 60 * 60 * 1000) {
+                        taskRef.set(now);
 
-                        userRef.update({
-                          balance: newBal,
-                          clicks: newClicks
+                        userRef.once("value").then(userSnap => {
+                          const user = userSnap.val();
+                          const newBal = (parseFloat(user.balance || 0) + rewardAmount).toFixed(2);
+                          const newClicks = (user.clicks || 0) + 1;
+
+                          userRef.update({
+                            balance: newBal,
+                            clicks: newClicks
+                          });
+
+                          db.ref(`clickTrackings/${uid}/${task}`).update({ status: true });
+
+                          statusMsg.innerHTML = `<h2 style='color:green;'>✅ ₹${rewardAmount} Reward Added!</h2><p>Task: <b>${task}</b><br/>Check your balance in the app.</p>`;
                         });
 
-                        db.ref(`clickTrackings/${uid}/${task}`).update({ status: true });
-
-                        statusMsg.innerHTML = "<h2 style='color:green;'>✅ ₹0.50 Reward Added!</h2><p>Check your balance in the app.</p>";
-                      });
-                    } else {
-                      statusMsg.innerHTML = "<span style='color:orange;'>⚠ You already completed this task today. Try again after 24 hours.</span>";
-                    }
+                      } else {
+                        statusMsg.innerHTML = "<span style='color:orange;'>⚠ Already completed this task today. Try again after 24 hours.</span>";
+                      }
+                    });
                   });
                 }
               }
