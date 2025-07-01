@@ -90,7 +90,7 @@
             if (data.token === code) {
               const now = Date.now();
 
-              // 🕒 Reset if expired
+              // Reset if expired
               if (data.status === true && (now - data.createdAt) > (24 * 60 * 60 * 1000)) {
                 db.ref(`clickTrackings/${uid}/${task}`).update({ status: false });
                 data.status = false;
@@ -109,6 +109,11 @@
                   // ✅ Get task reward from adminTasks
                   db.ref(`adminTasks/${task}/reward`).once("value").then(rSnap => {
                     const rewardAmount = parseFloat(rSnap.val() || 0.5);
+
+                    // Debugging logs (optional)
+                    console.log("Reward:", rewardAmount);
+                    console.log("UID:", uid);
+                    console.log("Task:", task);
 
                     const userRef = db.ref(`users/${uid}`);
                     const taskRef = db.ref(`users/${uid}/tasks/${task}`);
@@ -133,7 +138,7 @@
 
                           statusMsg.innerHTML = `<h2 style='color:green;'>✅ ₹${rewardAmount} Reward Added!</h2><p>Task: <b>${task}</b><br/>Check your balance in the app.</p>`;
 
-                          // 🔁 Redirect after 3 seconds
+                          // 🔁 Redirect after 1 second
                           setTimeout(() => {
                             window.location.href = "https://spyro-ajay.github.io/ads-page/";
                           }, 1000);
@@ -147,7 +152,7 @@
                 }
               }
             }
-          });z
+          });
         });
 
         if (!found) {
